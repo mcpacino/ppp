@@ -101,7 +101,7 @@ static void	ascii2unicode __P((char[], int, u_char[]));
 static void	NTPasswordHash __P((u_char *, int, u_char[MD4_SIGNATURE_SIZE]));
 static void	ChallengeResponse __P((u_char *, u_char *, u_char[24]));
 static void	ChapMS_NT __P((u_char *, char *, int, u_char[24]));
-static void	ChapMS2_NT __P((u_char *, u_char[16], char *, char *, int,
+void	ChapMS2_NT __P((u_char *, u_char[16], char *, char *, int,
 				u_char[24]));
 static void	GenerateAuthenticatorResponsePlain
 			__P((char*, int, u_char[24], u_char[16], u_char *,
@@ -608,7 +608,7 @@ ChapMS_NT(u_char *rchallenge, char *secret, int secret_len,
     ChallengeResponse(rchallenge, PasswordHash, NTResponse);
 }
 
-static void
+void
 ChapMS2_NT(u_char *rchallenge, u_char PeerChallenge[16], char *username,
 	   char *secret, int secret_len, u_char NTResponse[24])
 {

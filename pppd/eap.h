@@ -59,6 +59,18 @@ extern "C" {
 #define	EAPT_NOKIACARD		18	/* Nokia IP smart card */
 #define	EAPT_SRP		19	/* Secure Remote Password */
 /* 20 is deprecated */
+#define	EAPT_MS_CHAP_V2		26	/* Microsoft EAP CHAP Extensions */
+
+/* EAP MS_CHAP_V2 OpCodes */
+#define EAPMSCHAPV2_OPCODE_CHALLENGE 1
+#define EAPMSCHAPV2_OPCODE_RESPONSE 2
+#define EAPMSCHAPV2_OPCODE_SUCCESS 3
+#define EAPMSCHAPV2_OPCODE_FAILURE 4
+
+#define EAPMSCHAPV2_HEADER_LEN 5
+#define EAPMSCHAPV2_MAX_NAME_LEN 256
+
+#define EAPMSCHAPV2_CHALLENGE_VALUE_SIZE 16
 
 /* EAP SRP-SHA1 Subtypes */
 #define	EAPSRP_CHALLENGE	1	/* Request 1 - Challenge */

@@ -64,6 +64,7 @@
 #include "pathnames.h"
 #include "md5.h"
 #include "eap.h"
+#include "chap_ms.h"
 
 #ifdef USE_SRP
 #include <t_pwd.h>
@@ -1329,6 +1330,20 @@ int len;
 	int fd;
 #endif /* USE_SRP */
 
+	u_char opCode;
+	u_char ms_chapv2_id;
+	short ms_length;
+	u_char value_size;
+	u_char *received_challenge;
+	u_char *peer_challenge;
+	u_char name[EAPMSCHAPV2_MAX_NAME_LEN + 1];
+	int name_len;
+	u_char NTResponse[24];
+	u_char esp_ms_chap_v2_resp[1024];
+	u_char *outp = esp_ms_chap_v2_resp;
+	int esp_ms_chap_v2_resp_len;
+
+	int i;
 	/*
 	 * Note: we update es_client.ea_id *only if* a Response
 	 * message is being generated.  Otherwise, we leave it the
@@ -1688,6 +1703,81 @@ int len;
 		break;
 #endif /* USE_SRP */
 
+	case EAPT_MS_CHAP_V2:
+		GETCHAR(opCode, inp);
+		GETCHAR(ms_chapv2_id, inp);
+		GETSHORT(ms_length, inp);
+		GETCHAR(value_size, inp);
+
+		switch (opCode) {
+		case EAPMSCHAPV2_OPCODE_CHALLENGE:
+			if (value_size != EAPMSCHAPV2_CHALLENGE_VALUE_SIZE) {
+				warn("EAP: invalid value size %d", value_size);
+			}
+			
+			received_challenge = inp;
+			inp += EAPMSCHAPV2_CHALLENGE_VALUE_SIZE;
+			
+			name_len = ms_length - EAPMSCHAPV2_HEADER_LEN
+					- EAPMSCHAPV2_CHALLENGE_VALUE_SIZE;
+			if (name_len > EAPMSCHAPV2_MAX_NAME_LEN) {
+				name_len = EAPMSCHAPV2_MAX_NAME_LEN;
+			}
+			
+			BCOPY(inp, name, name_len);
+			BZERO(name + name_len, 1);
+
+			peer_challenge = outp + EAPMSCHAPV2_HEADER_LEN;
+			for (i = 0; i < MS_CHAP2_PEER_CHAL_LEN; i++) {
+			    peer_challenge[i] = (u_char) (drand48() * 0xff);
+			}
+
+			info("mcdebug remotename=%s ", remote_name, explicit_remote);
+			if (get_secret(esp->es_unit, esp->es_client.ea_name,
+				remote_name, secret, &secret_len, 0)) {
+			} else {
+				info("mcdebug: get_secret returns 0");
+			}
+
+
+			ChapMS2_NT(received_challenge, peer_challenge, user,
+				secret, strlen(secret), NTResponse);
+
+			esp_ms_chap_v2_resp_len = 5+49+strlen(user);
+			PUTCHAR(EAPMSCHAPV2_OPCODE_RESPONSE, outp);  //OpCode
+			PUTCHAR(ms_chapv2_id, outp);  //ms_chapv2_id
+			PUTSHORT(esp_ms_chap_v2_resp_len, outp); 
+			PUTCHAR(49, outp);  //value-size
+			info("mcdebug: user=%s len=%d", user, strlen(user));
+			// response
+			outp += MS_CHAP2_PEER_CHAL_LEN;  //response.peer_challenge
+			PUTLONG(0, outp);  //response.reserved
+			PUTLONG(0, outp);  //response.reserved
+			BCOPY(NTResponse, outp, 24);  //response.NTResponse
+			outp+=24;
+			PUTCHAR(0, outp);  //response.flags
+			// info("mcdebug: %s %s %d", user, secret, strlen(secret));
+			
+			BCOPY(user, outp, strlen(user));
+			
+			
+			info("mcdebug: send_response len=%d\n", esp_ms_chap_v2_resp_len);
+
+			eap_send_response(esp, id, typenum, 
+				esp_ms_chap_v2_resp, esp_ms_chap_v2_resp_len);
+			break;
+		case EAPMSCHAPV2_OPCODE_SUCCESS: 
+			outp = esp_ms_chap_v2_resp;
+			esp_ms_chap_v2_resp_len = 1;
+			PUTCHAR(3, outp);
+			eap_send_response(esp, id, typenum, 
+				esp_ms_chap_v2_resp, esp_ms_chap_v2_resp_len);
+			break;
+		default:	
+			eap_send_nak(esp, id, EAPT_SRP);
+			break;
+		}
+		break;
 	default:
 		info("EAP: unknown authentication type %d; Naking", typenum);
 		eap_send_nak(esp, id, EAPT_SRP);

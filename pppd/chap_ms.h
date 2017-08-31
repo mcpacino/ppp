@@ -87,6 +87,10 @@ extern void set_mppe_enc_types(int, int);
 #define MS_CHAP2_AUTHENTICATEE 0
 #define MS_CHAP2_AUTHENTICATOR 1
 
+void
+ChapMS2_NT(u_char *rchallenge, u_char PeerChallenge[16], char *username,
+	   char *secret, int secret_len, u_char NTResponse[24]);
+	   
 void ChapMS __P((u_char *, char *, int, u_char *));
 void ChapMS2 __P((u_char *, u_char *, char *, char *, int,
 		  u_char *, u_char[MS_AUTH_RESPONSE_LENGTH+1], int));
